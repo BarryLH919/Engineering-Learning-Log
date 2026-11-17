@@ -84,3 +84,59 @@ GitHub 网页刷新后显示 `README.md` ✅
 
 ### 9. 一句话教训
 **status 显示 clean，不等于没有问题；它只说明"Git 认为"没有变化。** 要判断问题在哪一层，就要分别查看每一层：`ls` 看 Working，`git ls-files` 看 Staging，GitHub 网页看 Remote
+
+## BUG-002| .gitignore _pycache__/少了一个下划线，以后 __pycache__/ 不会被忽略
+
+### 1.问题现象
+.gitignore 里写成了 `_pycache__/`，少了一个下划线，导致以后 `__pycache__/` 不会被忽略。
+
+### 2.预期 vs 实际
+-预期：让git忽略`__pycache__/`文件
+-实际: 由于拼写错误，导致git只忽略了`_pycache__/`，导致 `__pycache__/` 不会被忽略
+
+### 3.假设（排查前列出，逐个验证）
+| # | 假设 | 结论 |
+|---|---|---|
+| H1 | 修改.gitignore后忘记 add / commit | ❌ status 是 clean，说明 Git 认为没有待提交的变化 |
+| H2 | 在.gitignore中__pycache__/拼写出现错误 | ✅ 见证据 _pycache__/ |
+
+### 4.证据
+```bash
+$ vim .gitignore
+
+_pycache__/
+
+true
+```
+结论：.gitignore文件中为`_pycache__/`,与`__pycache__/`不一致，所以git忽略错误
+
+### 5.根本原因
+-输入时不仔细，疏忽了正确格式，开发功底薄弱，需要持续加强。
+**一句话：多练、多学、多检查。**
+
+### 6.解决方案
+**正确修复（两步改名，绕开"不区分大小写"）：**
+```bash
+git status                          # 确认工作区干净
+vim .gitigonre                      # 第 1 步：进入编辑器修改 _pycache__/错误并保存
+git status                          # 应显示 modified: .gitignore
+git commit -m "chore(.gitignore): pycache忽略格式输入错误修正"   # Staging → Local Repo
+git push                            # Local Repo → Remote
+```
+
+### 7. 验证
+```bash
+$ vim .gitignore
+`__pycache__/`                      # ✅ 拼写格式正确
+
+$ git log --oneline -1 --stat
+ecec6df ... chore(.gitignore): pycache忽略格式输入错误修正  # ✅ Git 记录正确符合修改要求
+```
+
+
+### 8. 预防
+- [ ] **修改后核查、保存**
+- [ ] **Push后去GitHub上再次检查是否存在错误，若有则及时修改**
+
+### 9. 一句话教训
+**错误的格式拼写，不仅仅是一次"小问题"，可能会对后续开发产生巨大的影响，也容易让其他开发成员误解你的意思，造成更大的损失**
