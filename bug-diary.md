@@ -87,6 +87,16 @@ GitHub 网页刷新后显示 `README.md` ✅
 
 ## BUG-002| .gitignore _pycache__/少了一个下划线，以后 __pycache__/ 不会被忽略
 
+| 项目 | 内容 |
+|---|---|
+| 日期 | 2026-11-17 |
+| 仓库 | SCMP（远程：Intelligent-Engineering-Management） |
+| 环境 | Windows 10/11 + Git Bash |
+| 所在层 | **Working**，并随 commit 进入 Local Repo / Remote |
+| 严重程度 | 高：错误导致__pycache__文件的忽略不生效，可能导致信息泄露、Git错误跟踪等问题 |
+| 耗时 | 约 30 分钟 |
+
+
 ### 1.问题现象
 .gitignore 里写成了 `_pycache__/`，少了一个下划线，导致以后 `__pycache__/` 不会被忽略。
 
@@ -102,32 +112,33 @@ GitHub 网页刷新后显示 `README.md` ✅
 
 ### 4.证据
 ```bash
-$ vim .gitignore
+$ git check-ignore -v src/__pycache__/x.pyc
 
-_pycache__/
+没有输出
 
 true
 ```
 结论：.gitignore文件中为`_pycache__/`,与`__pycache__/`不一致，所以git忽略错误
 
 ### 5.根本原因
--输入时不仔细，疏忽了正确格式，开发功底薄弱，需要持续加强。
-**一句话：多练、多学、多检查。**
+-写完忽略规则后没有验证。规则写出，git不会报错，只有验证才能发现！！！
+**一句话：忽略规则写完，一定要验证，避免信息泄露等重大问题出现。**
 
 ### 6.解决方案
-**正确修复（两步改名，绕开"不区分大小写"）：**
+**正确修复：**
 ```bash
 git status                          # 确认工作区干净
 vim .gitigonre                      # 第 1 步：进入编辑器修改 _pycache__/错误并保存
 git status                          # 应显示 modified: .gitignore
+git add .gitignore                  # 应无任何报错返回
 git commit -m "chore(.gitignore): pycache忽略格式输入错误修正"   # Staging → Local Repo
 git push                            # Local Repo → Remote
 ```
 
 ### 7. 验证
 ```bash
-$ vim .gitignore
-`__pycache__/`                      # ✅ 拼写格式正确
+$ git check-ignore -v src/__pycache__/x.pyc
+.gitignore:3:__pycache__/                      # ✅ 忽略生效
 
 $ git log --oneline -1 --stat
 ecec6df ... chore(.gitignore): pycache忽略格式输入错误修正  # ✅ Git 记录正确符合修改要求
@@ -135,8 +146,10 @@ ecec6df ... chore(.gitignore): pycache忽略格式输入错误修正  # ✅ Git 
 
 
 ### 8. 预防
-- [ ] **修改后核查、保存**
+- [ ] **修改一定要验收、核查、保存**
 - [ ] **Push后去GitHub上再次检查是否存在错误，若有则及时修改**
 
 ### 9. 一句话教训
 **错误的格式拼写，不仅仅是一次"小问题"，可能会对后续开发产生巨大的影响，也容易让其他开发成员误解你的意思，造成更大的损失**
+
+
