@@ -107,16 +107,13 @@ GitHub 网页刷新后显示 `README.md` ✅
 ### 3.假设（排查前列出，逐个验证）
 | # | 假设 | 结论 |
 |---|---|---|
-| H1 | 修改.gitignore后忘记 add / commit | ❌ status 是 clean，说明 Git 认为没有待提交的变化 |
-| H2 | 在.gitignore中__pycache__/拼写出现错误 | ✅ 见证据 _pycache__/ |
+| H1 | 在.gitignore中__pycache__/拼写出现错误 | ✅ 见证据 _pycache__/ |
 
 ### 4.证据
 ```bash
 $ git check-ignore -v src/__pycache__/x.pyc
 
 没有输出
-
-true
 ```
 结论：.gitignore文件中为`_pycache__/`,与`__pycache__/`不一致，所以git忽略错误
 
@@ -128,7 +125,7 @@ true
 **正确修复：**
 ```bash
 git status                          # 确认工作区干净
-vim .gitigonre                      # 第 1 步：进入编辑器修改 _pycache__/错误并保存
+vim .gitignore                      # 第 1 步：进入编辑器修改 _pycache__/错误并保存
 git status                          # 应显示 modified: .gitignore
 git add .gitignore                  # 应无任何报错返回
 git commit -m "chore(.gitignore): pycache忽略格式输入错误修正"   # Staging → Local Repo
@@ -146,7 +143,7 @@ ecec6df ... chore(.gitignore): pycache忽略格式输入错误修正  # ✅ Git 
 
 
 ### 8. 预防
-- [ ] **修改一定要验收、核查、保存**
+- [ ] **修改后验证、核查、保存**: 写完`.gitignore`后用`git check-ignore-v 逐条验证`
 - [ ] **Push后去GitHub上再次检查是否存在错误，若有则及时修改**
 
 ### 9. 一句话教训
@@ -190,12 +187,14 @@ c78e86d HEAD@{12:07}: commit (amend):  chore(src/tests): 新增.gitkeep文件   
 
 ### 6.解决方案
 
-**正确修复（两步改名，绕开"不区分大小写"）：**
-```bash
-git status                          # 确认工作区干净
-git reset --soft 1a4f3da~1          # 第 1 步：在本地重置到分叉前的公共父节点，保留工作区文件
-git commit -m"chore(src/tests): 新增.gitkeep文件"    # 第 2 步：重新统一提交
-git push --force-with=lease origin main             # Local Repo → Remote
+**正确修复：（两种方案）**
+```
+1.若历史已经共享，不修复，保留历史
+
+2.push之后发现漏了src/.gitkeep: 不要 amend ，补一个新的commit，amend 只能用在还没 push 的 commit 上。 
+git add src/.gitkeep
+git commit -m "chore(src): 新增 src/.gitkeep"
+git push
 ```
 
 ### 7. 验证
