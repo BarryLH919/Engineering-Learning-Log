@@ -152,4 +152,62 @@ ecec6df ... chore(.gitignore): pycache忽略格式输入错误修正  # ✅ Git 
 ### 9. 一句话教训
 **错误的格式拼写，不仅仅是一次"小问题"，可能会对后续开发产生巨大的影响，也容易让其他开发成员误解你的意思，造成更大的损失**
 
+## BUG-003| 对已推送的Commit执行Amend导致历史分叉与冗余Merge
 
+| 项目 | 内容 |
+|---|---|
+| 日期 | 2026-11-17 |
+| 仓库 | SCMP（远程：Intelligent-Engineering-Management）|
+| 环境 | Windows 10/11 + Git Bash |
+| 所在层 | **Local Repo/Remote** |
+| 严重程度 | 中：版本历史中会出现`同名且平行`的冗余节点，让其余开发者通过git log查看项目进度时产生误解等 |
+| 耗时 | 约 20 分钟 |
+
+### 1.问题现象
+Git提交历史中连续出现了两个提交信息完全相同的`commit`（chore(src/tests): 新增.gitkeep文件），紧接着产生一个多余的merge branch合并提交记录。
+### 2.预期 vs 实际
+-预期：tests/.gitkeep和src/.gitkeep合并在同一个干净的提交记录中（线性历史），远程与本地指针完全一致，无多余的Merge节点。
+-实际:远程保留了仅含tests/.gitkeep的旧提交，本地生成了包含两个.gitkeep的新提交，随后因推送别拒出发了pull合并，导致两个“同名但不同哈希数”的提交在历史中并存。
+
+### 3.假设（排查前列出，逐个验证）
+| # | 假设 | 结论 |
+|---|---|---|
+| H1 | 中途修改远程仓库名称，导致本地与远程跟踪分支同步异常 | ❌ git reflog完整还原了指针移动轨迹 |
+| H2 | 根据git reflog移动轨迹 | ✅ 见证据 |
+
+### 4.证据
+```bash
+git reflog
+1a4f3da HEAD@{12:05}: commit:          chore(src/tests): 新增.gitkeep文件   ← 初始提交（仅含 tests/.gitkeep）并已 push
+c78e86d HEAD@{12:07}: commit (amend):  chore(src/tests): 新增.gitkeep文件   ← 补加 src/.gitkeep 后 amend，生成新哈希
+1e9a295 HEAD@{12:09}: pull origin main: Merge made by the 'ort' strategy.  ← push 被拒后执行 pull，产生自动合并
+```
+结论：根据reflog指针轨迹显示，初始提交已经push，之后补加新的commit,同时amend生成新哈希，push被拒后执行pull产生自动合并。
+
+### 5.根本原因
+违背了`不可重写已推送公共历史`的原则。`git commit --amend` 的本质不是在原节点上修改，而是基于父节点创建一个全新的Commit对象来替换本地的`HEDA`；由于原节点已经推送到`Remote`本地`Local Repo`与`Remote`的历史在同一节点下各自向前走了一步，形成了分叉；随后`git push`被拒，执行`git pull`将远程强行合入本地的哈希，最终留下**两个同名节点和合并节点**。
+**一句话：已经Remote的Commit，不能通过amend取代，amend是基于原节点创建新的Commit**
+
+### 6.解决方案
+
+**正确修复（两步改名，绕开"不区分大小写"）：**
+```bash
+git status                          # 确认工作区干净
+git reset --soft 1a4f3da~1          # 第 1 步：在本地重置到分叉前的公共父节点，保留工作区文件
+git commit -m"chore(src/tests): 新增.gitkeep文件"    # 第 2 步：重新统一提交
+git push --force-with=lease origin main             # Local Repo → Remote
+```
+
+### 7. 验证
+```bash
+$ git log --oneline --graph -n 5    # ✅ 确认提交历史呈一条直线，仅存在唯一一个提交记录，且无merge 记录
+$ git status                        # ✅ 确认输出Your branch is up to date with origin/main 且工作区干净
+```
+
+### 8. 预防
+- [ ] **推送前先核查**：执行`git commit`前养成运行`git status`和`git diff --cached`的习惯，确认所有相关目录都已进入暂存区。
+- [ ] **严禁amend**已推送的节点，执行`amend`前先用`git status`确认状态，禁止已经push到Remote的commit执行amend,绝不重写已经推送到云仓库的节点。
+
+
+### 9. 一句话教训
+**推送前先核查，已推送到云的节点不得重写** 
